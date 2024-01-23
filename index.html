@@ -1,0 +1,200 @@
+<html>
+    <head>
+        <title>NftMarket</title>
+        <style>
+            .main {
+                text-align: center;
+                margin: auto;
+            }
+
+            .logs {
+            text-align: center;
+            }
+
+            button {
+            margin: 10px;
+            min-width: 120px;
+            min-height: 30px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="main">
+            <h1>
+                My NftMarket
+            </h1>
+            <button id="btnConn"> Connect Wallet </button>
+
+            <div class="actions">
+                <input placeholder="tokenId" id="inputTokenId" type="number" />
+                <input placeholder= "listPrice" id="inputPrice" type="number" />
+                <button id="btnList">List Nft</button>
+                
+            </div>
+
+            <div>
+                <input placeholder="buyId" id="inputBuyId" type="number" />
+                <input placeholder="buyAmount" id="inputAmount" type="number" />
+                <button id="btnBuy"> Buy </button>
+            </div>
+
+            <div class="logs">
+
+            </div>
+        </div>
+
+
+        <script type="module">
+            import { ethers } from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.min.js";
+            var wallet;
+            var tokenContract;
+            var nftContract;
+            var marketContract;
+
+            var tokenAddress = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6";
+            var nftAddress = "0x0B306BF915C4d645ff596e518fAf3F9669b97016";
+            var nftMarketAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+
+            window.onload = function () {
+                document.getElementById("btnConn").onclick = handleConnection;
+                document.getElementById("btnList").onclick = handleList;
+                document.getElementById("btnBuy").onclick = handleBuy;
+                handleConnection();
+            }
+
+            async function handleConnection() {
+                if (window.ethereum == null) {
+                    printLog("Please install wallet first!")
+                } else {
+                    let provider = new ethers.BrowserProvider(window.ethereum)
+                    provider.getSigner().then((signer) => {
+                        printLog("welcome " + signer.address);
+                        updateWalletInfo(signer);//更新数据
+                        initMarketContract();
+                        initTokenContract();
+                        initNftContract();
+                        refreshState();
+                        // // 登录成功后，监控Bank的所有操作事件
+                        // let start = 13
+                        // getLogs(start, start + 2)
+                    }).catch(err => {
+                        console.log(Object.keys(err))
+                        printLog(err.reason ? err.reason : err);
+                    });
+                }
+            }
+
+             // 更新钱包信息
+            async function updateWalletInfo(signer) {
+                wallet = signer// update 
+            }
+
+           
+
+            // 初始化token合约对象
+            function initTokenContract() {
+                var abi = [
+                    "function getBalance(address user) public view returns(uint256)",
+                ]
+                // 需要更新成你自己的合约地址
+                tokenContract = new ethers.Contract(tokenAddress,
+                    abi, wallet)
+            }
+
+        // 初始化nft合约对象
+            function initNftContract() {
+                var abi = [
+                    "function getNftBalance(address user) public view returns(uint256)",
+                ]
+                // 需要更新成你自己的合约地址
+                nftContract = new ethers.Contract(nftAddress,
+                    abi, wallet)
+            }
+
+            // 初始化market合约对象
+            function initMarketContract() {
+                var abi = [
+                    "function list(uint tokenId, uint price) public",
+                    "function buyNft(uint tokenId, uint amount) public",
+                ]
+                // 需要更新成你自己的合约地址
+                marketContract = new ethers.Contract(nftMarketAddress, abi, wallet)
+            }
+            // 更新链上的状态数据
+            async function refreshState() {
+                    if (!tokenContract) {return;}
+
+                    // 读取Mytoken 余额
+                    const balance = await tokenContract.getBalance(wallet.address);
+                    console.log(balance)
+                    printLog(`You Mytoken balance is ${ethers.formatEther(balance)}`)
+
+                    // 读取NFT 余额
+                    const nftbalance = await nftContract.getNftBalance(wallet.address);
+                    console.log(nftbalance)
+                    printLog(`You nft balance is ${nftbalance}`)
+
+                }
+
+            async function handleList() {
+                if (!marketContract) {
+                    return;
+                }
+                // Get user inputs (assuming inputTokenId and inputPrice are user input fields)
+                const tokenId = document.getElementById("inputTokenId").value;
+                const price = document.getElementById("inputPrice").value;
+
+                try {
+                    // Call the 'list' method of your smart contract
+                    const transaction = await marketContract.list(tokenId, price);
+
+                    // Wait for the transaction to be mined
+                    await transaction.wait();
+
+                    printTx(transaction);
+                } catch (error) {
+                    // Handle errors (e.g., invalid inputs, transaction failure)
+                    console.error("Error listing item:", error.message);
+                    printLog("Error listing item: " + error.message);
+                }
+            }
+            
+            async function handleBuy(){
+                if (!marketContract) {
+                        return;
+                    }
+                const amount = document.getElementById("inputAmount").value;
+                const tokenId = document.getElementById("inputBuyId").value;
+                if (amount <=0 ) {
+                    printLog("Invalid Input!")
+                    return;
+                }
+                const result = await marketContract.buyNft(tokenId,amount);
+                printTx(result)
+            }
+
+            // 打印交易执行过程信息
+            async function printTx(result) {
+                printLog("Tx hash:" + result.hash)
+                printLog("Waiting tx minted....")
+
+                // 等待交易打包
+                const receipt = await result.wait()
+                printLog("Get Receipt:" + JSON.stringify(receipt, "", ""))
+
+                // 交易执行结束后更新状态
+                refreshState();
+            }
+
+
+
+            function printLog(msg) {
+                let p = document.createElement("p");
+                p.textContent = msg
+                document.getElementsByClassName("logs")[0].appendChild(p)
+            }
+
+        </script>
+    </body>
+</html>
