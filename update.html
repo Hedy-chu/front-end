@@ -1,52 +1,70 @@
+<!DOCTYPE html>
 <html>
-    <head>
-        <title>NftMarket</title>
-        <style>
-            .main {
-                text-align: center;
-                margin: auto;
-            }
+<head>
+    <title>NftMarket</title>
+    <style>
+        body {
+            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
 
-            .logs {
+        .main {
             text-align: center;
-            }
+            margin: auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
 
-            button {
+        h1 {
+            color: #333;
+        }
+
+        .actions {
+            margin-top: 20px;
+        }
+
+        input, button {
             margin: 10px;
             min-width: 120px;
             min-height: 30px;
-            }
-        </style>
-    </head>
+        }
 
-    <body>
-        <div class="main">
-            <h1>
-                My NftMarket
-            </h1>
-            <button id="btnConn"> Connect Wallet </button>
+        .logs {
+            text-align: center;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
 
-            <div class="actions">
-                <input placeholder="tokenId" id="inputTokenId" type="number" />
-                <input placeholder= "listPrice" id="inputPrice" type="number" />
-                <button id="btnList">List Nft</button>
-                
-            </div>
+<body>
+    <div class="main">
+        <h1>My NftMarket</h1>
+        <button id="btnConn">Connect Wallet</button>
 
-            <div>
-                <input placeholder="buyId" id="inputBuyId" type="number" />
-                <input placeholder="buyAmount" id="inputAmount" type="number" />
-                <button id="btnBuy"> Buy </button>
-            </div>
-
-            <div class="logs">
-
-            </div>
+        <div class="actions">
+            <input placeholder="tokenId" id="inputTokenId" type="number" />
+            <input placeholder="listPrice" id="inputPrice" type="number" />
+            <button id="btnList">List Nft</button>
         </div>
 
+        <div>
+            <input placeholder="buyId" id="inputBuyId" type="number" />
+            <input placeholder="buyAmount" id="inputAmount" type="number" />
+            <button id="btnBuy">Buy</button>
+        </div>
 
-        <script type="module">
-            import { ethers } from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.min.js";
+        <div class="logs"></div>
+    </div>
+
+    <script type="module">
+        import { ethers } from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.min.js";
             var wallet;
             var tokenContract;
             var nftContract;
@@ -270,7 +288,6 @@
                 p.textContent = msg
                 document.getElementsByClassName("logs")[0].appendChild(p)
             }
-
-        </script>
-    </body>
+    </script>
+</body>
 </html>
