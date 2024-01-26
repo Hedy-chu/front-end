@@ -1,0 +1,153 @@
+<html>
+    <head>
+        <title>NftMarket</title>
+        <style>
+            .main {
+                text-align: center;
+                margin: auto;
+            }
+
+            .logs {
+            text-align: center;
+            }
+
+            button {
+            margin: 10px;
+            min-width: 120px;
+            min-height: 30px;
+            }
+        </style>
+    </head>
+    <body>
+
+        <div class="main">
+            <h1>
+                sign
+            </h1>
+
+            <button id="btnConn"> Connect Wallet </button>
+
+            <div>
+                <input placeholder="userAddr" id="userAddr" type="text" />
+                <button id="sign"> sign </button>
+            </div>
+
+            <div class="logs">
+
+            </div>
+        </div>
+
+         <script type="module">
+            import { ethers } from "https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.min.js";
+            var wallet;
+            var provider;
+            var signContract;
+            var walletAddress;
+            EIP712Domain: [
+                { name: "name", type: "string" },
+                { name: "version", type: "string" },
+                { name: "chainId", type: "uint256" },
+                { name: "verifyingContract", type: "string" },
+            ]
+
+            const types = {
+                Storage: [
+                    { name: "allowUser", type: "address" },
+                    { name: "nonce", type: "uint256" },
+                ],
+            };
+
+            var signAddress = "0x9A676e781A523b5d0C0e43731313A708CB607508";
+
+            window.onload = function () {
+                document.getElementById("btnConn").onclick = handleConnection;
+                document.getElementById("sign").onclick = handleSign;
+                handleConnection();
+            }
+
+            async function handleConnection() {
+                if (window.ethereum == null) {
+                    printLog("Please install wallet first!")
+                } else {
+                    provider = new ethers.BrowserProvider(window.ethereum)
+                    provider.getSigner().then((signer) => {
+                        printLog("welcome " + signer.address);
+                        updateWalletInfo(signer);//更新数据
+                        initSignContract();
+                    }).catch(err => {
+                        console.log(Object.keys(err))
+                        printLog(err.reason ? err.reason : err);
+                    });
+                }
+            }
+
+            // 初始化token合约对象
+            function initSignContract() {
+                var abi = [
+                    "function nonces(address owner) public returns (uint256)",
+                ]
+                console.log("signAddress:" + signAddress)
+                console.log("wallet:" + wallet)
+                // 需要更新成你自己的合约地址
+                signContract = new ethers.Contract(signAddress,abi,wallet);
+                console.log("signContract:" + signContract)
+            }
+
+
+             // 更新钱包信息
+            async function updateWalletInfo(signer) {
+                wallet = signer// update 
+                walletAddress = signer.address;
+            }
+
+            async function handleSign(){
+                if (!signContract) {
+                    console.log("signContract null ")
+                    return;
+                }
+                const userAddr = document.getElementById("userAddr").value;
+                const domain = {
+                    name: "Sign",
+                    version: "1",
+                    chainId: "31337",
+                    verifyingContract:"0x9A676e781A523b5d0C0e43731313A708CB607508",
+                };
+                console.log("signContract = ", signContract)
+                console.log("wallet.address = ", wallet.address)
+
+                const nonce = await signContract.nonces(walletAddress);
+                await nonce.wait();
+
+                console.log("nonce = ", nonce.value)
+                console.log("userAddr= ",userAddr)
+
+                const message = {
+                    allowUser: userAddr,
+                    nonce: nonce.value,
+                };
+                console.log(wallet);
+
+                const signature = await wallet.signTypedData(domain, types, message);
+                const sig = ethers.Signature.from(signature);
+                console.log("Signature:", signature);
+                printLog("v:"+`${sig.v}`);
+                printLog("r:"+`${sig.r}`);
+                printLog("s:"+`${sig.s}`);
+                // SignatureV.innerHTML = `${sig.v}`;
+                // SignatureR.innerHTML = `${sig.r}`;
+                // SignatureS.innerHTML = `${sig.s}`;
+                // showSignature.innerHTML = `${signature}`;
+                console.log("Signature:", signature);
+
+            }
+
+            function printLog(msg) {
+                let p = document.createElement("p");
+                p.textContent = msg
+                document.getElementsByClassName("logs")[0].appendChild(p)
+            }
+
+        </script>
+
+    </body>
+</html>

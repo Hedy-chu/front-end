@@ -39,6 +39,20 @@
                 <button id="btnBuy"> Buy </button>
             </div>
 
+            <div>
+                <input placeholder="userAddr" id="userAddr" type="text" />
+                <button id="sign"> sign </button>
+            </div>
+
+            <div>
+                <input placeholder="tokenIdWL" id="tokenIdWL" type="text" />
+                <input placeholder="amountWL" id="amountWL" type="text" />
+                <input placeholder="v" id="v" type="text" />
+                <input placeholder="r" id="r" type="text" />
+                <input placeholder="s" id="s" type="text" />
+                <button id="buyWithWL"> buyWithWL </button>
+            </div>
+
             <div class="logs">
 
             </div>
@@ -51,15 +65,32 @@
             var tokenContract;
             var nftContract;
             var marketContract;
+            var provider;
 
-            var tokenAddress = "0xd3941DB40c5B652EaB37F89F3EDB671Fe69e2200";
-            var nftAddress = "0xfdA4820483E8a58c585C040979914dA24fa0EaaB";
-            var nftMarketAddress = "0xf827eecF484997CCd6dB393bf2691557dCACD91c";
+            EIP712Domain: [
+                { name: "name", type: "string" },
+                { name: "version", type: "string" },
+                { name: "chainId", type: "uint256" },
+
+            ]
+
+            const types = {
+                Storage: [
+                { name: "allowUser", type: "address" },
+                { name: "nonce", type: "uint256" },
+                ],
+            };
+
+            var tokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+            var nftAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+            var nftMarketAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
 
             window.onload = function () {
                 document.getElementById("btnConn").onclick = handleConnection;
                 document.getElementById("btnList").onclick = handleList;
                 document.getElementById("btnBuy").onclick = handleBuy;
+                document.getElementById("sign").onclick = handleSign;
+                document.getElementById("buyWithWL").onclick = handlebuyWithWL;
                 handleConnection();
             }
 
@@ -67,7 +98,7 @@
                 if (window.ethereum == null) {
                     printLog("Please install wallet first!")
                 } else {
-                    let provider = new ethers.BrowserProvider(window.ethereum)
+                    provider = new ethers.BrowserProvider(window.ethereum)
                     provider.getSigner().then((signer) => {
                         printLog("welcome " + signer.address);
                         updateWalletInfo(signer);//更新数据
@@ -85,12 +116,43 @@
                 }
             }
 
+          
+
              // 更新钱包信息
             async function updateWalletInfo(signer) {
                 wallet = signer// update 
             }
 
-           
+            async function handleSign(){
+                const userAddr = document.getElementById("userAddr").value;
+                const domain = {
+                    name: "NFTMarket",
+                    version: "1",
+                    chainId: "31337",
+                    verifyingContract:"0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+                };
+                console.log("marketContract = ", marketContract)
+                console.log("wallet.address = ", wallet.address)
+
+                const nonce = await marketContract.nonces(wallet.address);
+                // await nonce.wait();
+
+                console.log("nonce = ", nonce.value)
+                console.log("userAddr= ",userAddr)
+
+                const message = {
+                    allowUser: userAddr,
+                    nonce: nonce.value,
+                };
+                console.log(wallet);
+
+                const signature = await wallet.signTypedData(domain, types, message);
+                const sig = ethers.Signature.from(signature);
+                console.log("Signature:", signature);
+                printLog("v:"+`${sig.v}`);
+                printLog("r:"+`${sig.r}`);
+                printLog("s:"+`${sig.s}`);
+            }
 
             // 初始化token合约对象
             function initTokenContract() {
@@ -102,7 +164,7 @@
                 tokenContract = new ethers.Contract(tokenAddress,abi, wallet)
             }
 
-        // 初始化nft合约对象
+            // 初始化nft合约对象
             function initNftContract() {
                 var abi = [
                     "function getNftBalance(address user) public view returns(uint256)",
@@ -118,8 +180,12 @@
                 var abi = [
                     "function list(uint tokenId, uint price) public",
                     "function buyNft(uint tokenId, uint amount) public",
-                    "event listToken(address user, uint256 tokenId, uint256 price )",
+                    "function buyNftWithWL(uint tokenId, uint amount,uint8 v, bytes32 r, bytes32 s) public",
+                    "function nonces(address owner) public returns (uint256)",
+                    "event listToken(address user, uint256 tokenId, uint256 price)",
                     "event buy(address user, uint256 tokenId, uint256 amount )",
+                    "event buyWithWL(address user, uint256 tokenId, uint256 amount)",
+
                 ]
                 // 需要更新成你自己的合约地址
                 marketContract = new ethers.Contract(nftMarketAddress, abi, wallet)
@@ -156,14 +222,14 @@
                 try {
                     // approve
                     const approve = await nftContract.approve(nftMarketAddress,tokenId);
-                    await approve.wait();
+                    // await approve.wait();
                     printTx(approve);
 
                     // Call the 'list' method of your smart contract
                     const transaction = await marketContract.list(tokenId, price);
 
                     // Wait for the transaction to be mined
-                    await transaction.wait();
+                    // await transaction.wait();
 
                     printTx(transaction);
                 } catch (error) {
@@ -198,6 +264,40 @@
                 }
             }
 
+              // <div>
+            //     <input placeholder="buyer" id="buyerAddr" type="text" />
+            //     <input placeholder="amountWL" id="amountWL" type="text" />
+            //     <input placeholder="v" id="v" type="text" />
+            //     <input placeholder="r" id="r" type="text" />
+            //     <input placeholder="s" id="s" type="text" />
+            //     <button id="buyWithWL"> buyWithWL </button>
+            // buyNftWithWL(uint tokenId, uint amount,uint8 v, bytes32 r, bytes32 s) 
+            // </div>
+
+            async function handlebuyWithWL() {
+                const tokenIdWL = document.getElementById("tokenIdWL").value;
+                const amountWL = document.getElementById("amountWL").value;
+                const v = document.getElementById("v").value;
+                const r = document.getElementById("r").value;
+                const s = document.getElementById("s").value;
+                console.log("handlebuyWithWL = ", tokenIdWL,amountWL,v,r,s)
+
+                if (amountWL <=0 ) {
+                        printLog("Invalid Input!")
+                        return;
+                }
+
+                const approve = await tokenContract.approve(nftMarketAddress,amountWL);
+                // await approve.wait();
+                printTx(approve);
+
+                const buyWithWL = await marketContract.buyNftWithWL(tokenIdWL,amountWL,v,r,s);
+                // await buyWithWL.wait();
+                printTx(buyWithWL);
+               
+            }
+
+
             async function getLogs(fromBlock, toBlock) {
                 console.log(fromBlock)
                 const userAddress = wallet.address
@@ -229,12 +329,13 @@
 
             }
 
-
             // "event listToken(address user, uint256 tokenId, uint256 price )",
             //         "event buy(address user, uint256 tokenId, uint256 amount )",
+            //         "event buyWithWL(address user, uint256 tokenId, uint256 amount)"
             function decodeEvents(logs){
                 const listEvent = marketContract.getEvent("listToken").fragment
                 const buyEvent = marketContract.getEvent("buy").fragment
+                const buyWithWLEvent = marketContract.getEvent("buyWithWL").fragment
 
                 for (var i = 0; i < logs.length; i++) {
                     const item = logs[i]
@@ -245,6 +346,9 @@
                     } if (eventId == buyEvent.topicHash) {// Deposit event Id
                         const data= marketContract.interface.decodeEventLog(buyEvent,item.data,item.topics)
                         printLog(`Block:${item.blockNumber} ${data.user}  buyNft tokenId： ${data.tokenId} price： ${data.amount }`)
+                    } if(eventId == buyWithWLEvent.topicHash){
+                        const data= marketContract.interface.decodeEventLog(buyWithWLEvent,item.data,item.topics)
+                        printLog(`Block:${item.blockNumber} ${data.user}  buyNftWithWL tokenId： ${data.tokenId} price： ${data.amount }`)
                     }
                 }
 
