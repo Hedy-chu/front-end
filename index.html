@@ -52,6 +52,19 @@
                 <input placeholder="s" id="s" type="text" />
                 <button id="buyWithWL"> buyWithWL </button>
             </div>
+                
+            <div>
+                <input placeholder="sigListToken" id="sigListToken" type="text" />
+                <input placeholder="sigListPrice" id="sigListPrice" type="text" />
+                <button id="sigList"> sigList </button>
+            </div>
+
+            <div>
+                <input placeholder="sigBuyToken" id="sigBuyToken" type="text" />
+                <input placeholder="sigBuyPrice" id="sigBuyPrice" type="text" />
+                <input placeholder="buySig" id="buySig" type="text" />
+                <button id="buyWithSig"> buyWithSig </button>
+            </div>
 
             <div class="logs">
 
@@ -71,7 +84,7 @@
                 { name: "name", type: "string" },
                 { name: "version", type: "string" },
                 { name: "chainId", type: "uint256" },
-
+                { name: "verifyingContract", type: "string" },
             ]
 
             const types = {
@@ -81,9 +94,16 @@
                 ],
             };
 
+            const listTypes = {
+                BuyBySig: [
+                { name: "tokenId", type: "uint256" },
+                { name: "price", type: "uint256" },
+                ],
+            };
+
             var tokenAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
             var nftAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-            var nftMarketAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+            var nftMarketAddress = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9";
 
             window.onload = function () {
                 document.getElementById("btnConn").onclick = handleConnection;
@@ -91,6 +111,8 @@
                 document.getElementById("btnBuy").onclick = handleBuy;
                 document.getElementById("sign").onclick = handleSign;
                 document.getElementById("buyWithWL").onclick = handlebuyWithWL;
+                document.getElementById("sigList").onclick = handleSigList;
+                document.getElementById("buyWithSig").onclick = handleBuyWithSig;
                 handleConnection();
             }
 
@@ -117,7 +139,6 @@
             }
 
           
-
              // 更新钱包信息
             async function updateWalletInfo(signer) {
                 wallet = signer// update 
@@ -129,7 +150,7 @@
                     name: "NFTMarket",
                     version: "1",
                     chainId: "31337",
-                    verifyingContract:"0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+                    verifyingContract:nftMarketAddress,
                 };
                 console.log("marketContract = ", marketContract)
                 console.log("wallet.address = ", wallet.address)
@@ -154,6 +175,74 @@
                 printLog("s:"+`${sig.s}`);
             }
 
+
+            // const listTypes = {
+            //     BuyBySig: [
+            //     { name: "tokenId", type: "uint256" },
+            //     { name: "price", type: "uint256" },
+            //     { name: "nonce", type: "uint256" },
+            //     ],
+            // };
+            
+            // <input placeholder="sigBuyToken" id="sigBuyToken" type="text" />
+            //     <input placeholder="sigBuyPrice" id="sigBuyPrice" type="text" />
+            //     <input placeholder="buySig" id="buySig" type="text" />
+            // "function buyNftBySig(uint256 tokenId,uint256 price, uint8 v, bytes32 r, bytes32 s) public",
+            // "function offlineApprove(address to,uint256 tokenId, uint256 price, uint8 v, bytes32 r, bytes32 s) public returns(bool)",
+
+            async function handleBuyWithSig(){
+                const buyToken = document.getElementById("sigBuyToken").value;
+                const buyPrice = document.getElementById("sigBuyPrice").value;
+                const signature = document.getElementById("buySig").value;
+
+                const sig = ethers.Signature.from(signature);
+                const v = sig.v;
+                const r = sig.r;
+                const s = sig.s;
+                printLog("v:"+`${sig.v}`);
+                printLog("r:"+`${sig.r}`);
+                printLog("s:"+`${sig.s}`);
+
+                // 授权  先注释
+                // const approve = await tokenContract.approve(nftMarketAddress,buyPrice);
+                // await approve.wait();
+                // printTx(approve);
+
+                // const approve = await nftContract.offlineApprove(nftMarketAddress,buyToken,buyPrice,v,r,s);
+                // printTx(approve);
+                console.log("marketContract = ", marketContract);
+             
+                const nonce = await marketContract.nonces(wallet.address);
+                console.log("nonce = ", nonce.value)
+                const result = await marketContract.buyNftBySig(buyToken,buyPrice,v,r,s);
+                printTx(result);
+                console.log("result = ", result)
+
+            }
+            
+            async function handleSigList(){
+                const listTokenId = document.getElementById("sigListToken").value;
+                const listPrice = document.getElementById("sigListPrice").value;
+
+                const domain = {
+                    name: "MyERC721",
+                    version: "1",
+                    chainId: "31337",
+                    verifyingContract: nftAddress,
+                };
+                console.log("marketContract = ", marketContract)
+                console.log("wallet.address = ", wallet.address)
+
+                const message = {
+                    tokenId: listTokenId,
+                    price: listPrice,
+                };
+                console.log(wallet);
+
+                const signature = await wallet.signTypedData(domain, listTypes, message);
+                console.log("ListSignature:", signature);
+            }
+
             // 初始化token合约对象
             function initTokenContract() {
                 var abi = [
@@ -169,6 +258,7 @@
                 var abi = [
                     "function getNftBalance(address user) public view returns(uint256)",
                     "function approve(address to, uint256 tokenId) public",
+                    "function offlineApprove(address to,uint256 tokenId, uint256 price, uint8 v, bytes32 r, bytes32 s) public returns(bool)",
                 ]
                 // 需要更新成你自己的合约地址
                 nftContract = new ethers.Contract(nftAddress,
@@ -182,6 +272,7 @@
                     "function buyNft(uint tokenId, uint amount) public",
                     "function buyNftWithWL(uint tokenId, uint amount,uint8 v, bytes32 r, bytes32 s) public",
                     "function nonces(address owner) public returns (uint256)",
+                    "function buyNftBySig(uint256 tokenId,uint256 price, uint8 v, bytes32 r, bytes32 s) public",
                     "event listToken(address user, uint256 tokenId, uint256 price)",
                     "event buy(address user, uint256 tokenId, uint256 amount )",
                     "event buyWithWL(address user, uint256 tokenId, uint256 amount)",
@@ -264,15 +355,7 @@
                 }
             }
 
-              // <div>
-            //     <input placeholder="buyer" id="buyerAddr" type="text" />
-            //     <input placeholder="amountWL" id="amountWL" type="text" />
-            //     <input placeholder="v" id="v" type="text" />
-            //     <input placeholder="r" id="r" type="text" />
-            //     <input placeholder="s" id="s" type="text" />
-            //     <button id="buyWithWL"> buyWithWL </button>
-            // buyNftWithWL(uint tokenId, uint amount,uint8 v, bytes32 r, bytes32 s) 
-            // </div>
+        
 
             async function handlebuyWithWL() {
                 const tokenIdWL = document.getElementById("tokenIdWL").value;
@@ -329,9 +412,7 @@
 
             }
 
-            // "event listToken(address user, uint256 tokenId, uint256 price )",
-            //         "event buy(address user, uint256 tokenId, uint256 amount )",
-            //         "event buyWithWL(address user, uint256 tokenId, uint256 amount)"
+    
             function decodeEvents(logs){
                 const listEvent = marketContract.getEvent("listToken").fragment
                 const buyEvent = marketContract.getEvent("buy").fragment
